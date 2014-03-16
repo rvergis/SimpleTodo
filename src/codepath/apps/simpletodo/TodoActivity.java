@@ -1,6 +1,16 @@
 package codepath.apps.simpletodo;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.LineNumberReader;
 import java.util.ArrayList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -31,8 +41,7 @@ public class TodoActivity extends Activity {
 		items = new ArrayList<String>();
 		itemsAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, items);
 		lvItems.setAdapter(itemsAdapter);
-		items.add("First Item");
-		items.add("Second Item");
+		readItems();
 		setupListViewListener();
 	}
 	
@@ -46,8 +55,13 @@ public class TodoActivity extends Activity {
 	
 	public void addTodoItem(View v) {
 		EditText etNewItem = (EditText) findViewById(R.id.etNewItem);
-		itemsAdapter.add(etNewItem.getText().toString());
-		etNewItem.setText("");
+		String item = etNewItem.getText().toString();
+		if (item != null && item.trim().length() > 0) {
+			items.add(item);
+			itemsAdapter.notifyDataSetInvalidated();
+			etNewItem.setText("");
+			saveItems();			
+		}
 	}
 	
 	public void onSubmit(View v) {
@@ -60,7 +74,8 @@ public class TodoActivity extends Activity {
 		lvItems.setOnItemLongClickListener(new OnItemLongClickListener() {
 			public boolean onItemLongClick(AdapterView<?> aView, View item, int pos, long id) {
 				items.remove(pos);
-				itemsAdapter.notifyDataSetInvalidated();				
+				itemsAdapter.notifyDataSetInvalidated();	
+				saveItems();
 				return true;
 			}
 		});
@@ -85,10 +100,86 @@ public class TodoActivity extends Activity {
 			if (position >= 0 && position < items.size()) {
 				items.set(position, item);
 				itemsAdapter.notifyDataSetInvalidated();
+				saveItems();
 			}			
 		}
 	}
 
-
+	private void readItems() {
+		File filesDir = getFilesDir();
+		File todoFile = new File(filesDir, "todo.txt");
+		items.clear();
+		items.addAll(readLines(todoFile));
+		
+	}
+	
+	private void saveItems() {
+		File filesDir = getFilesDir();
+		File todoFile = new File(filesDir, "todo.txt");
+		writeLines(todoFile, items);		
+	}
+	
+	private ArrayList<String> readLines(File todoFile) {
+		ArrayList<String> lines = new ArrayList<String>();
+		LineNumberReader reader = null;
+		if (todoFile.exists()) {
+			try{
+				reader = new LineNumberReader(new BufferedReader(new FileReader(todoFile)));
+				String line = null;
+				while ((line = reader.readLine()) != null) {
+					lines.add(line);
+				}
+			} catch(FileNotFoundException e) {
+				Logger logger = Logger.getLogger(getPackageName());
+				logger.log(Level.SEVERE, "Unable to read items from todo.txt", e);
+			} catch(IOException e) {
+				Logger logger = Logger.getLogger(getPackageName());
+				logger.log(Level.SEVERE, "Unable to read items from todo.txt", e);				
+			} finally {
+				if (reader != null) {
+					try {
+						reader.close();
+					} catch(IOException e) {
+						Logger logger = Logger.getLogger(getPackageName());
+						logger.log(Level.SEVERE, "Unable to close todo.txt", e);
+					}
+					
+				}
+			}
+		}
+		return lines;
+	}
+	
+	private void writeLines(File todoFile, ArrayList<String> lines) {
+		BufferedWriter writer = null;
+		try {
+			writer = new BufferedWriter(new FileWriter(todoFile));
+			int idx = 0;
+			for (String line : lines) {
+				if (idx > 0) {
+					writer.newLine();										
+				}
+				if (line != null) {
+					writer.write(line);
+					idx++;
+				}
+			}
+		} catch(IOException e) {
+			Logger logger = Logger.getLogger(getPackageName());
+			logger.log(Level.SEVERE, "Unable to write items to todo.txt", e);							
+		} finally {
+			if (writer != null) {
+				try {
+					writer.close();
+				} catch(IOException e) {
+					Logger logger = Logger.getLogger(getPackageName());
+					logger.log(Level.SEVERE, "Unable to close todo.txt", e);
+				}
+				
+			}
+		}				
+	}
+	
+	
 
 }
